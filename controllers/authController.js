@@ -1,9 +1,10 @@
 import User from '../models/user.js'
 import bcrypt from 'bcrypt'
 import { createError } from '../error.js';
-import pkg from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+// import mongoose from 'mongoose';
 
-const jwt = pkg
+// const jwt = pkg
 
 // User Registration
 export const registration = async (req, res, next) => {

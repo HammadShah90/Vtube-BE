@@ -6,13 +6,13 @@ import {
 
 const authRoutes = express.Router()
 
-// Create a User
+// CREATE A USER
 authRoutes.post('/register', registration)
 
-// Sign in
+// SIGN IN
 authRoutes.post('/login', login)
 
-// Google Authentication
+// GOOGLE AUTH
 // authRoutes.post('/google', googleAuth)
 
 export default authRoutes

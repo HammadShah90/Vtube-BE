@@ -5,7 +5,7 @@ const connectDB = (uri) => {
         useNewUrlParser: true,
         useUnifiedTopology: true,
     })
-    console.log("Connected with DataBase");
+    console.log("Connected with DB");
     return connectDataBase;
 }
 
