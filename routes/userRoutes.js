@@ -16,7 +16,7 @@ const userRoutes = express.Router();
 userRoutes.put("/:id", verifyToken, updateUserController);
 
 // Delete User
-userRoutes.delete("/:id", deleteUserController);
+userRoutes.delete("/:id", verifyToken, deleteUserController);
 
 // Get User
 userRoutes.get("/find/:id", getUserController);
@@ -25,15 +25,15 @@ userRoutes.get("/find/:id", getUserController);
 // userRoutes.get("/", getUsers);
 
 // Subscribe User
-userRoutes.put("/sub/:id", subscribeUserController)
+userRoutes.put("/sub/:id", verifyToken, subscribeUserController)
 
 // UnSubscribe User
-userRoutes.put("/unsub/:id", unSubscribeUserController)
+userRoutes.put("/unsub/:id", verifyToken, unSubscribeUserController)
 
 // Like Video
-userRoutes.put("/like/:videoId", likeVideoController);
+userRoutes.put("/like/:videoId", verifyToken, likeVideoController);
 
 // Dislike Video
-userRoutes.put("/dislike/:videoId", dislikeVideoController);
+userRoutes.put("/dislike/:videoId", verifyToken, dislikeVideoController);
 
 export default userRoutes;

@@ -1,7 +1,6 @@
 import { createError } from "../utils/error.js";
 import User from "../models/user.js";
 
-
 export const updateUserController = async (req, res, next) => {
   if (req.params.id === req.user.id) {
     try {
@@ -25,14 +24,77 @@ export const updateUserController = async (req, res, next) => {
   }
 };
 
-export const deleteUserController = (req, res, next) => {};
+export const deleteUserController = async (req, res, next) => {
+  if (req.params.id === req.user.id) {
+    try {
+      await User.findByIdAndDelete(req.params.id, { new: true });
+      res.status(200).send({
+        status: "Success",
+        message: "User has been Deleted",
+      });
+    } catch (err) {
+      next(err);
+    }
+  } else {
+    return next(createError(403, "You can delete only your account!"));
+  }
+};
 
-export const getUserController = (req, res, next) => {};
+export const getUserController = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    const { password, ...others} = user._doc
 
-export const subscribeUserController = (req, res, next) => {};
+    res.status(200).send({
+      status: "Success",
+      message: "User has been Fetched",
+      data: others,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
 
-export const unSubscribeUserController = (req, res, next) => {};
+export const subscribeUserController = async (req, res, next) => {
+    try {
+        await User.findById(req.user.id, {
+            $push: { subscribedUsers: req.params.id }
+        });
+        await User.findByIdAndUpdate(req.params.id, {
+            $inc: { subscribers: 1 }
+        });
+        res.status(200).send({
+            status: "Success",
+            message: "User has been Subscribed"
+        });
+    } catch (err) {
+        next(err)
+    }
+};
 
-export const likeVideoController = (req, res, next) => {};
+export const unSubscribeUserController = async (req, res, next) => {
+    try {
+        await User.findById(req.user.id, {
+            $pull: { subscribedUsers: req.params.id }
+        });
+        await User.findByIdAndUpdate(req.params.id, {
+            $inc: { subscribers: -1 }
+        });
+        res.status(200).send({
+            status: "Success",
+            message: "User has been unSubscribed"
+        });
+    } catch (err) {
+        next(err)
+    }
+};
 
-export const dislikeVideoController = (req, res, next) => {};
+export const likeVideoController = async (req, res, next) => {
+    try {
+        
+    } catch (err) {
+        next(err)
+    }
+};
+
+export const dislikeVideoController = async (req, res, next) => {};
