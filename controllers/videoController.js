@@ -101,7 +101,7 @@ export const addView = async (req, res, next) => {
 
 export const randomVideos = async (req, res, next) => {
   try {
-    const videos = await Video.aggregate([{ $sample: { size: 1 } }]);
+    const videos = await Video.aggregate([{ $sample: { size: 40 } }]);
     res.status(200).send({
       status: "Success",
       message: "Random videos has been fetched",

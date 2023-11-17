@@ -20,13 +20,13 @@ const videoRoutes = express.Router();
 videoRoutes.post("/", verifyToken, addVideo);
 
 // Update a video
-videoRoutes.put("/:videoId", verifyToken, updateVideo);
+videoRoutes.put("/:id", verifyToken, updateVideo);
 
 // Delete a video
-videoRoutes.delete("/:videoId", verifyToken, deleteVideo);
+videoRoutes.delete("/:id", verifyToken, deleteVideo);
 
 // Get a video
-videoRoutes.get("/find/:videoId", getVideo);
+videoRoutes.get("/find/:id", getVideo);
 
 // Get all videos
 videoRoutes.get("/find", verifyToken, getAllVideos);
