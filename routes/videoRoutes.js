@@ -29,7 +29,7 @@ videoRoutes.delete("/:id", verifyToken, deleteVideo);
 videoRoutes.get("/find/:id", getVideo);
 
 // Get all videos
-videoRoutes.get("/find", verifyToken, getAllVideos);
+videoRoutes.get("/find", getAllVideos);
 
 // Get all videos
 videoRoutes.get("/view/:id", addView);

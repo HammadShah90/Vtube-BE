@@ -80,6 +80,12 @@ export const getVideo = async (req, res, next) => {
 
 export const getAllVideos = async (req, res, next) => {
   try {
+    const videos = await Video.find();
+    res.status(200).send({
+      status: "Success",
+      message: "All videos has been fetched",
+      data: videos,
+    });
   } catch (err) {
     next(err);
   }
