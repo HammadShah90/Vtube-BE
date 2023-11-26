@@ -1,4 +1,5 @@
-import User from "../models/user.js"
+import mongoose from "mongoose";
+import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
@@ -31,10 +32,12 @@ export const registration = async (req, res, next) => {
 
     // save user data and responsed==>
     const user = await newUser.save();
-    res.status(200).send({
+
+    const { password, ...others } = user._doc;
+    res.status(OK).send({
       status: "Success",
       message: "User has been created",
-      data: user,
+      data: others,
     });
   } catch (err) {
     next(err);
@@ -55,7 +58,12 @@ export const login = async (req, res, next) => {
 
     if (!validPassword) return next(createError(400, "Wrong password"));
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
+    // const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
+
+    const token = GenerateToken({
+      data: user._id,
+      expireIn: process.env.JWT_EXPIRES_LOGIN,
+    });
 
     const { password, ...others } = user._doc;
 
@@ -63,10 +71,11 @@ export const login = async (req, res, next) => {
       .cookie("access_token", token, {
         httpOnly: true,
       })
-      .status(200)
+      .status(OK)
       .send({
         status: "Success",
         message: "User has been Signed In",
+        token,
         data: others,
       });
   } catch (err) {
@@ -74,66 +83,128 @@ export const login = async (req, res, next) => {
   }
 };
 
+// Google Authentication
+
+export const googleAuth = async (req, res, next) => {
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    // console.log(user);
+    if (user) {
+      console.log(user);
+      const token = GenerateToken({
+        data: user._id,
+        expireIn: expireIn,
+      });
+      res
+        .cookie("access_token", token, {
+          httpOnly: true,
+        })
+        .status(OK)
+        .send({
+          status: "Success",
+          message: "User has been Signed In",
+          data: user._doc,
+        });
+    } else {
+      const newUser = new User({
+        ...req.body,
+        fromGoogle: true,
+      });
+      const savedUser = await newUser.save();
+      console.log(savedUser);
+      const token = GenerateToken({
+        data: savedUser._id,
+        expireIn: expireIn,
+      });
+      res
+        .cookie("access_token", token, {
+          httpOnly: true,
+        })
+        .status(OK)
+        .send({
+          status: "Success",
+          message: "User has been Signed In",
+          data: savedUser._doc,
+        });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
 // Forgot Password
+
 export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
     // console.log(email);
     if (email) {
       const user = await User.findOne({ email });
-      // console.log(user);
       if (user) {
+        // console.log(user);
         const secret = process.env.JWT_SECRET_KEY + user._id;
         // console.log(secret);
-        const token = GenerateToken({data: secret, expireIn: '30m'})
+
+        const token = GenerateToken({
+          data: secret,
+          expireIn: process.env.JWT_EXPIRES_IN,
+        });
         // console.log(token);
-        const link = `${process.env.WEB_LINK}/api/v1/${user._id}/${token}`;
 
-        // return res.status(OK).send({
-        //   status: "Success",
-        //   data: link,
-        // });
+        const setUserToken = await User.findByIdAndUpdate(
+          { _id: user._id },
+          { verifytoken: token },
+          { new: true }
+        );
+        // console.log(setUserToken);
 
-        const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-            user: process.env.FOUNDER_EMAIL,
-            pass: process.env.FOUNDER_PASSWORD,
-          },
-        });
+        if (setUserToken) {
+          const link = `${process.env.WEB_LINK}/resetpassword/${user._id}/${setUserToken.verifytoken}`;
 
-        
-        // const transporter = nodemailer.createTransport({
-        //   host: process.env.SMTP_HOST,
-        //   port: process.env.SMTP_PORT,
-        //   auth: {
-        //     user: process.env.SMTP_EMAIL,
-        //     pass: process.env.SMTP_PASSWORD,
-        //   },
-        // });
-        
-        // console.log(transporter);
-        const mailOptions = {
-          from: `hammad.shaha90@gmail.com`,
-          to: `hammad.shaha90@gmail.com`,
-          subject: "Forgot Password",
-          text: `Please click on the link to reset your password ${link}`,
-        };
+          // return res.status(OK).send({
+          //   status: "Success",
+          //   data: link,
+          // });
 
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            console.log(error);
-            return res
-              .status(INTERNALERROR)
-              .send(createError(INTERNALERROR, error.message));
-          } else {
-            console.log("Email sent: " + info.response);
-            return res.status(OK).send({
-              status: "Success",
-              message: "Email has been sent",
-            });
-          }
-        });
+          const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+              user: process.env.FOUNDER_EMAIL,
+              pass: process.env.FOUNDER_PASSWORD,
+            },
+          });
+
+          // const transporter = nodemailer.createTransport({
+          //   host: process.env.SMTP_HOST,
+          //   port: process.env.SMTP_PORT,
+          //   auth: {
+          //     user: process.env.SMTP_EMAIL,
+          //     pass: process.env.SMTP_PASSWORD,
+          //   },
+          // });
+
+          // console.log(transporter);
+          const mailOptions = {
+            from: process.env.FOUNDER_EMAIL,
+            to: email,
+            subject: "PASSWORD RECOVERY",
+            text: `Thank you for using Vtube. Use the following Link to complete your Password Recovery Procedure. Link is valid for 5 minutes only. Please click on the link to reset your password ${link}`,
+          };
+          transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+              console.log(error);
+              return res
+                .status(INTERNALERROR)
+                .send(createError(INTERNALERROR, error.message));
+            } else {
+              console.log("Email sent: " + info.response);
+              return res.status(OK).send({
+                status: "Success",
+                message: "Email has been sent Successfully",
+              });
+            }
+          });
+        }
       } else {
         res
           .status(NOTFOUND)
@@ -150,17 +221,20 @@ export const forgotPassword = async (req, res, next) => {
 };
 
 export const resetPassword = async (req, res, next) => {
+  const { id, token } = req.params;
+  console.log(id);
+  console.log(token);
   try {
+    const validUser = await User.findOne({ _id: id, varifytoken: token });
+    const verifyToken = verify(token, process.env.JWT_SECRET_KEY);
+    console.log(verifyToken);
     const { newPassword, confirmNewPassword, token } = req.body;
     if (newPassword && confirmNewPassword && token) {
-      const { result } = verify(token, process.env.JWT_SECRET_KEY);
-      // console.log(result);
-      // console.log(process.env.JWT_SECRET_KEY.length);
-      console.log(typeof result);
-      const userId = result.slice(0, result.length - process.env.JWT_SECRET_KEY.length);
-      console.log(userId);
+      const { id } = verify(token, process.env.JWT_SECRET_KEY);
+      // console.log(id);
+      const userId = id.slice(process.env.JWT_SECRET_KEY.length - id.length);
+      // console.log(userId);
       const user = await User.findById(userId);
-      return res.send(user);
       if (user) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
@@ -170,7 +244,7 @@ export const resetPassword = async (req, res, next) => {
         await user.save();
         res.status(OK).send({
           status: "Success",
-          message: "Password has been reset",
+          message: "Password has been Changed kindly login",
         });
       } else {
         res
@@ -188,9 +262,3 @@ export const resetPassword = async (req, res, next) => {
       .send(createError(INTERNALERROR, err.message));
   }
 };
-
-// Google Authentication
-
-// export const googleAuth = (req, res) => {
-
-// }

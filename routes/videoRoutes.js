@@ -8,7 +8,7 @@ import {
   getVideoByTag,
   randomVideos,
   searchVideos,
-  subcribeVideos,
+  subscribeVideos,
   trendVideos,
   updateVideo,
 } from "../controllers/videoController.js";
@@ -41,7 +41,7 @@ videoRoutes.get("/random", randomVideos);
 videoRoutes.get("/trend", trendVideos);
 
 // Get all videos
-videoRoutes.get("/sub", verifyToken, subcribeVideos);
+videoRoutes.get("/sub", verifyToken, subscribeVideos);
 
 // Get all videos
 videoRoutes.get("/tags", getVideoByTag);

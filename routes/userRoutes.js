@@ -7,6 +7,7 @@ import {
   unSubscribeUserController,
   likeVideoController,
   dislikeVideoController,
+  getUsersController,
 } from "../controllers/userController.js";
 import { verifyToken } from "../helpers/verifyToken.js";
 
@@ -22,7 +23,7 @@ userRoutes.delete("/:id", verifyToken, deleteUserController);
 userRoutes.get("/find/:id", getUserController);
 
 // Get All Users
-// userRoutes.get("/", getUsers);
+userRoutes.get("/find", getUsersController);
 
 // Subscribe User
 userRoutes.put("/sub/:id", verifyToken, subscribeUserController)

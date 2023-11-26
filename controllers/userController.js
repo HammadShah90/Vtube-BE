@@ -52,18 +52,52 @@ export const getUserController = async (req, res, next) => {
       data: others,
     });
   } catch (err) {
+    next(err.message);
+  }
+};
+
+export const getUsersController = async (req, res, next) => {
+  try {
+    const users = await User.find();
+    res.status(200).send({
+      status: "Success",
+      message: "Users has been Fetched",
+      data: users,
+    });
+  } catch (err) {
     next(err);
   }
 };
 
 export const subscribeUserController = async (req, res, next) => {
   try {
-    await User.findByIdAndUpdate(req.user.id, {
-      $push: { subscribedUsers: req.params.id },
-    });
-    await User.findByIdAndUpdate(req.params.id, {
-      $inc: { subscribers: 1 },
-    });
+    const subscribedId = req.user.id;
+    const targetUserId = req.params.id;
+
+    const subscriberUpdate = await User.findByIdAndUpdate(
+      subscribedId,
+      {
+        $push: { subscribedUsers: targetUserId },
+      },
+      { new: true }
+    );
+
+    if (!subscriberUpdate) {
+      return next(createError(404, "Subscriber not found"));
+    }
+
+    const targetUserUpdate = await User.findByIdAndUpdate(
+      targetUserId,
+      {
+        $inc: { subscribers: 1 },
+      },
+      { new: true }
+    );
+
+    if (!targetUserUpdate) {
+      return next(createError(404, "Target user not found"));
+    }
+
     res.status(200).send({
       status: "Success",
       message: "User has been Subscribed",
@@ -75,15 +109,36 @@ export const subscribeUserController = async (req, res, next) => {
 
 export const unSubscribeUserController = async (req, res, next) => {
   try {
-    await User.findByIdAndUpdate(req.user.id, {
-      $pull: { subscribedUsers: req.params.id },
-    });
-    await User.findByIdAndUpdate(req.params.id, {
-      $inc: { subscribers: -1 },
-    });
+    const subscribedId = req.user.id;
+    const targetUserId = req.params.id;
+
+    const subscriberUpdate = await User.findByIdAndUpdate(
+      subscribedId,
+      {
+        $pull: { subscribedUsers: targetUserId },
+      },
+      { new: true }
+    );
+
+    if (!subscriberUpdate) {
+      return next(createError(404, "Subscriber not found"));
+    }
+
+    const targetUserUpdate = await User.findByIdAndUpdate(
+      targetUserId,
+      {
+        $inc: { subscribers: -1 },
+      },
+      { new: true }
+    );
+
+    if (!targetUserUpdate) {
+      return next(createError(404, "Target user not found"));
+    }
+
     res.status(200).send({
       status: "Success",
-      message: "User has been unSubscribed",
+      message: "User has been Unsubscribed",
     });
   } catch (err) {
     next(err);

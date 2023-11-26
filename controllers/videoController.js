@@ -131,10 +131,11 @@ export const trendVideos = async (req, res, next) => {
   }
 };
 
-export const subcribeVideos = async (req, res, next) => {
+export const subscribeVideos = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
     const subscribedChannels = user.subscribedUsers;
+    console.log(subscribedChannels);
 
     const list = await Promise.all(
       subscribedChannels.map(async (channelId) => {
@@ -147,7 +148,8 @@ export const subcribeVideos = async (req, res, next) => {
       data: list.flat().sort((a, b) => b.createdAt - a.createdAt),
     });
   } catch (err) {
-    next(err);
+    next(err.message);
+    console.log(err.message);
   }
 };
 
