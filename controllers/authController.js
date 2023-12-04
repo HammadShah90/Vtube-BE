@@ -49,26 +49,41 @@ export const login = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
 
-    if (!user) return next(createError(404, "Email not found"));
+    if (!user) {
+      res.status(NOTFOUND).send({
+        status: "failed",
+        message: "Email not found",
+      });
+      return;
+    }
 
     const validPassword = await bcrypt.compare(
       req.body.password,
       user.password
     );
 
-    if (!validPassword) return next(createError(400, "Wrong password"));
-
-    // const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY);
+    if (!validPassword) {
+      return res.status(BADREQUEST).send({
+        status: "failed",
+        message: "Password not valid",
+      });
+    }
 
     const token = GenerateToken({
       data: user._id,
       expireIn: process.env.JWT_EXPIRES_LOGIN,
     });
 
+    // const realToken = token.replaceAll(".", "dot");
+    // console.log(realToken);
+    // console.log(token);
+
     const { password, ...others } = user._doc;
 
     res
       .cookie("access_token", token, {
+        // Expires after 12 hours
+        expires: new Date(Date.now() + 12 * 60 * 60 * 1000),
         httpOnly: true,
       })
       .status(OK)
@@ -90,19 +105,24 @@ export const googleAuth = async (req, res, next) => {
     const user = await User.findOne({ email: req.body.email });
     // console.log(user);
     if (user) {
-      console.log(user);
       const token = GenerateToken({
         data: user._id,
-        expireIn: expireIn,
+        expireIn: process.env.JWT_EXPIRES_LOGIN,
       });
+      // const realToken = token.replaceAll(".", "dot")
+      // console.log(realToken);
+      // console.log(token);
       res
         .cookie("access_token", token, {
+          // Expires after 12 hours
+          expires: new Date(Date.now() + 12 * 60 * 60 * 1000),
           httpOnly: true,
         })
         .status(OK)
         .send({
           status: "Success",
           message: "User has been Signed In",
+          token,
           data: user._doc,
         });
     } else {
@@ -114,16 +134,18 @@ export const googleAuth = async (req, res, next) => {
       console.log(savedUser);
       const token = GenerateToken({
         data: savedUser._id,
-        expireIn: expireIn,
+        expireIn: process.env.JWT_EXPIRES_LOGIN,
       });
       res
         .cookie("access_token", token, {
+          expires: new Date(Date.now() + 5 * 60 * 1000),
           httpOnly: true,
         })
         .status(OK)
         .send({
           status: "Success",
           message: "User has been Signed In",
+          token,
           data: savedUser._doc,
         });
     }
@@ -142,7 +164,7 @@ export const forgotPassword = async (req, res, next) => {
       const user = await User.findOne({ email });
       if (user) {
         // console.log(user);
-        const secret = process.env.JWT_SECRET_KEY + user._id;
+        const secret = user._id + process.env.JWT_SECRET_KEY;
         // console.log(secret);
 
         const token = GenerateToken({
@@ -151,60 +173,62 @@ export const forgotPassword = async (req, res, next) => {
         });
         // console.log(token);
 
-        const setUserToken = await User.findByIdAndUpdate(
-          { _id: user._id },
-          { verifytoken: token },
-          { new: true }
-        );
+        const realToken = token.replaceAll(".", "dot");
+        // console.log(realToken);
+        // console.log(token);
+
+        // const setUserToken = await User.findByIdAndUpdate(
+        //   { _id: user._id },
+        //   { verifytoken: token },
+        //   { new: true }
+        // );
         // console.log(setUserToken);
 
-        if (setUserToken) {
-          const link = `${process.env.WEB_LINK}/resetpassword/${user._id}/${setUserToken.verifytoken}`;
+        const link = `${process.env.WEB_LINK}/resetpassword/${user._id}/${realToken}`;
 
-          // return res.status(OK).send({
-          //   status: "Success",
-          //   data: link,
-          // });
+        // return res.status(OK).send({
+        //   status: "Success",
+        //   data: link,
+        // });
 
-          const transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-              user: process.env.FOUNDER_EMAIL,
-              pass: process.env.FOUNDER_PASSWORD,
-            },
-          });
+        const transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: process.env.FOUNDER_EMAIL,
+            pass: process.env.FOUNDER_PASSWORD,
+          },
+        });
 
-          // const transporter = nodemailer.createTransport({
-          //   host: process.env.SMTP_HOST,
-          //   port: process.env.SMTP_PORT,
-          //   auth: {
-          //     user: process.env.SMTP_EMAIL,
-          //     pass: process.env.SMTP_PASSWORD,
-          //   },
-          // });
+        // const transporter = nodemailer.createTransport({
+        //   host: process.env.SMTP_HOST,
+        //   port: process.env.SMTP_PORT,
+        //   auth: {
+        //     user: process.env.SMTP_EMAIL,
+        //     pass: process.env.SMTP_PASSWORD,
+        //   },
+        // });
 
-          // console.log(transporter);
-          const mailOptions = {
-            from: process.env.FOUNDER_EMAIL,
-            to: email,
-            subject: "PASSWORD RECOVERY",
-            text: `Thank you for using Vtube. Use the following Link to complete your Password Recovery Procedure. Link is valid for 5 minutes only. Please click on the link to reset your password ${link}`,
-          };
-          transporter.sendMail(mailOptions, (error, info) => {
-            if (error) {
-              console.log(error);
-              return res
-                .status(INTERNALERROR)
-                .send(createError(INTERNALERROR, error.message));
-            } else {
-              console.log("Email sent: " + info.response);
-              return res.status(OK).send({
-                status: "Success",
-                message: "Email has been sent Successfully",
-              });
-            }
-          });
-        }
+        // console.log(transporter);
+        const mailOptions = {
+          from: process.env.FOUNDER_EMAIL,
+          to: email,
+          subject: "PASSWORD RECOVERY",
+          text: `Thank you for using Vtube. Use the following Link to complete your Password Recovery Procedure. Link is valid for 5 minutes only. Please click on the link to reset your password ${link}`,
+        };
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.log(error);
+            return res
+              .status(INTERNALERROR)
+              .send(createError(INTERNALERROR, error.message));
+          } else {
+            console.log("Email sent: " + info.response);
+            return res.status(OK).send({
+              status: "Success",
+              message: "Email has been sent Successfully",
+            });
+          }
+        });
       } else {
         res
           .status(NOTFOUND)
@@ -221,13 +245,8 @@ export const forgotPassword = async (req, res, next) => {
 };
 
 export const resetPassword = async (req, res, next) => {
-  const { id, token } = req.params;
-  console.log(id);
-  console.log(token);
+  // console.log("reset password email cotroller");
   try {
-    const validUser = await User.findOne({ _id: id, varifytoken: token });
-    const verifyToken = verify(token, process.env.JWT_SECRET_KEY);
-    console.log(verifyToken);
     const { newPassword, confirmNewPassword, token } = req.body;
     if (newPassword && confirmNewPassword && token) {
       const { id } = verify(token, process.env.JWT_SECRET_KEY);
@@ -241,8 +260,7 @@ export const resetPassword = async (req, res, next) => {
         await User.findByIdAndUpdate(userId, {
           $set: { password: hashedPassword },
         });
-        await user.save();
-        res.status(OK).send({
+        return res.status(OK).send({
           status: "Success",
           message: "Password has been Changed kindly login",
         });
@@ -257,6 +275,7 @@ export const resetPassword = async (req, res, next) => {
         .send(createError(BADREQUEST, responseMessages.MISSING_FIELDS));
     }
   } catch (err) {
+    console.log(err);
     return res
       .status(INTERNALERROR)
       .send(createError(INTERNALERROR, err.message));

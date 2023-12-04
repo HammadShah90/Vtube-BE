@@ -135,7 +135,7 @@ export const subscribeVideos = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
     const subscribedChannels = user.subscribedUsers;
-    console.log(subscribedChannels);
+    // console.log(subscribedChannels);
 
     const list = await Promise.all(
       subscribedChannels.map(async (channelId) => {

@@ -2,7 +2,7 @@ import express from "express";
 import path from 'path'
 import dotenv from 'dotenv'
 import helmet from "helmet";
-// import cors from "cors";
+import cors from "cors";
 import connectDB from './db/connect.js'
 import authRoutes from "./routes/authRoutes.js";
 import cookieParser from "cookie-parser";
@@ -15,7 +15,7 @@ const __dirname = path.resolve()
 dotenv.config({ path: './.env' });
 
 // Middlewares
-// app.use(cors())
+app.use(cors())
 app.use(cookieParser())
 app.use(express.json())
 
