@@ -1,12 +1,13 @@
 import User from "../models/user.js";
 import Video from "../models/video.js";
 import { createError } from "../utils/error.js";
+import { OK } from "../constants/httpStatus.js";
 
 export const addVideo = async (req, res, next) => {
   const newVideo = new Video({ userId: req.user.id, ...req.body });
   try {
     const savedVideo = await newVideo.save();
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "Video has been saved",
       data: savedVideo,
@@ -30,7 +31,7 @@ export const updateVideo = async (req, res, next) => {
         },
         { new: true }
       );
-      res.status(200).send({
+      res.status(OK).send({
         status: "Success",
         message: "Video has been updated",
         data: updatedVideo,
@@ -50,7 +51,7 @@ export const deleteVideo = async (req, res, next) => {
       return next(createError(404, "Video not found"));
     } else if (req.user.id === video.userId) {
       await Video.findByIdAndDelete(req.params.id, { new: true });
-      res.status(200).send({
+      res.status(OK).send({
         status: "Success",
         message: "Video has been deleted",
       });
@@ -68,7 +69,7 @@ export const getVideo = async (req, res, next) => {
     if (!video) {
       return next(createError(404, "Video not found"));
     }
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "Video has been fetched",
       data: video,
@@ -81,7 +82,7 @@ export const getVideo = async (req, res, next) => {
 export const getAllVideos = async (req, res, next) => {
   try {
     const videos = await Video.find();
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "All videos has been fetched",
       data: videos,
@@ -96,7 +97,7 @@ export const addView = async (req, res, next) => {
     await Video.findByIdAndUpdate(req.params.id, {
       $inc: { views: 1 },
     });
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "View has been increased",
     });
@@ -108,7 +109,7 @@ export const addView = async (req, res, next) => {
 export const randomVideos = async (req, res, next) => {
   try {
     const videos = await Video.aggregate([{ $sample: { size: 40 } }]);
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "Random videos has been fetched",
       data: videos,
@@ -121,7 +122,7 @@ export const randomVideos = async (req, res, next) => {
 export const trendVideos = async (req, res, next) => {
   try {
     const videos = await Video.find().sort({ views: -1 });
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "Trend videos has been fetched",
       data: videos,
@@ -142,7 +143,7 @@ export const subscribeVideos = async (req, res, next) => {
         return await Video.find({ userId: channelId });
       })
     );
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "Subscribed videos has been fetched",
       data: list.flat().sort((a, b) => b.createdAt - a.createdAt),
@@ -161,7 +162,7 @@ export const getVideoByTag = async (req, res, next) => {
     })
       .sort({ views: -1 })
       .limit(20);
-    res.status(200).send({
+    res.status(OK).send({
       status: "Success",
       message: "Tag videos has been fetched",
       data: videos,
@@ -172,19 +173,20 @@ export const getVideoByTag = async (req, res, next) => {
 };
 
 export const searchVideos = async (req, res, next) => {
-    const query = req.query.q;
+  const query = req.query.q;
+  // console.log(query, "===>>>177");
   try {
     const videos = await Video.find({
       title: { $regex: query, $options: "i" },
-    })
-      .sort({ views: -1 })
-      .limit(20);
-    res.status(200).send({
+    }).limit(40);
+    // console.log(videos, "===>>>182");
+    res.status(OK).send({
       status: "Success",
       message: "Search videos has been fetched",
       data: videos,
     });
   } catch (err) {
+    console.log(err);
     next(err);
   }
 };
