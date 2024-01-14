@@ -71,7 +71,7 @@ export const login = async (req, res, next) => {
 
     const token = GenerateToken({
       data: user._id,
-      expireIn: new Date(Date.now() + 12 * 60 * 60 * 1000), // Expires after 12 hours
+      expireIn: process.env.JWT_EXPIRES_LOGIN,
     });
 
     // const realToken = token.replaceAll(".", "dot");
