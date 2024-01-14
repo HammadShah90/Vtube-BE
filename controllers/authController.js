@@ -212,7 +212,7 @@ export const forgotPassword = async (req, res, next) => {
             $set: {
               emailOTP: {
                 otp: otpNumber,
-                createdAt: new Date() // Save the current timestamp
+                createdAt: new Date()
               },
             },
           }
@@ -256,6 +256,64 @@ export const forgotPassword = async (req, res, next) => {
   }
 };
 
+
+// >------------------------
+// >> Verify OTP logic
+// >------------------------
+export const verifyOTP = async (req, res, next) => {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).send({
+      status: "Failed",
+      message: "Email and OTP must be provided",
+    });
+  }
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).send({
+        status: "Failed",
+        message: "User not found",
+      });
+    }
+
+    
+    const currentTime = new Date().getMinutes();
+    console.log(currentTime);
+    const otpTime = new Date(user.emailOTP.createdAt).getMinutes();
+    console.log(otpTime);
+    const timeDifference = (currentTime - otpTime);
+    console.log(timeDifference);
+
+    if (timeDifference <= 5 && user.emailOTP.otp === otp) {
+      const token = GenerateToken({
+        data: user._id,
+        expireIn: process.env.JWT_EXPIRES_IN,
+      });
+      console.log(token);
+  
+      const realToken = token.replaceAll(".", "d");
+      console.log(realToken);
+      user.resetToken = realToken;
+      await user.save();
+  
+      // OTP is valid, proceed to the password reset step
+      res.status(200).send({
+        status: "Success",
+        message: "OTP is valid",
+        token: realToken
+        // Optionally, you can send a token to the user for the password reset step
+      });
+    } else {
+      return res.status(400).send({
+        status: "Failed",
+        message: "OTP is invalid or expired",
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
 
 // >------------------------
 // >> Reset Password logic

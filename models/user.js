@@ -40,8 +40,11 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     emailOTP: {
-      OTP: Number,
+      otp: Number,
       createdAt: Date
+    },
+    resetToken: {
+      type: String
     }
   },
   {
