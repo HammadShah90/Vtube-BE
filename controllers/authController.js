@@ -204,14 +204,13 @@ export const forgotPassword = async (req, res, next) => {
       if (user) {
         // console.log(user);
         const otp = randomatic("0", 6);
+        const otpNumber = parseInt(otp, 10);
 
         const otpAddToDb = await User.updateOne(
           { _id: user._id },
           {
-            $push: {
-              emailOTP: {
-                OTP: otp,
-              },
+            $set: {
+              emailOTP: otpNumber,
             },
           }
         );
