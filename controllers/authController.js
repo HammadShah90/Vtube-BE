@@ -200,52 +200,47 @@ export const forgotPassword = async (req, res, next) => {
     const { email } = req.body;
     // console.log(email);
     if (email) {
-      const user = await User.findOne({ email });
-      if (user) {
-        // console.log(user);
-        const otp = randomatic("0", 6);
-        const otpNumber = parseInt(otp, 10);
+      const otp = randomatic("0", 6);
+      const otpNumber = parseInt(otp, 10);
 
-        const otpAddToDb = await User.updateOne(
-          { _id: user._id },
-          {
-            $set: {
-              emailOTP: {
-                otp: otpNumber,
-                createdAt: new Date()
-              },
+      const user = await User.findOneAndUpdate(
+        { email },
+        {
+          $set: {
+            emailOTP: {
+              otp: otpNumber,
+              createdAt: new Date()
             },
-          }
-        );
+          },
+        },
+        { new: true }
+      );
 
-        if (!otpAddToDb) {
-          return res.status(400).send({
-            status: "Failed",
-            message: "User not found or OTP not added",
-          });
-        }
+      if (!user) {
+        return res.status(BADREQUEST).send({
+          status: "Failed",
+          message: "User not found or OTP not added",
+        });
+      }
 
-        try {
-          await user.save();
-
-          // Send OTP via email
-          const emailResponse = await sendEmailOTP(email, otp);
-          console.log(emailResponse);
-
-        } catch (error) {
-          console.log(error);
-        }
-
-        res.status(200).send({
+      // Send OTP via email
+      try {
+        await sendEmailOTP(email, otp);
+        
+        res.status(OK).send({
           status: "Success",
           message: `OTP sent to ${email} via email`,
           data: user,
         });
-      } else {
-        res
-          .status(NOTFOUND)
-          .send(createError(NOTFOUND, responseMessages.NO_USER_FOUND));
+
+      } catch (error) {
+        console.log(error);
+        res.status(INTERNALERROR).send({
+          status: "Failed",
+          message: "Error sending email with OTP",
+        });
       }
+
     } else {
       return res
         .status(BADREQUEST)
@@ -298,14 +293,14 @@ export const verifyOTP = async (req, res, next) => {
       await user.save();
   
       // OTP is valid, proceed to the password reset step
-      res.status(200).send({
+      res.status(OK).send({
         status: "Success",
         message: "OTP is valid",
         token: realToken
         // Optionally, you can send a token to the user for the password reset step
       });
     } else {
-      return res.status(400).send({
+      return res.status(BADREQUEST).send({
         status: "Failed",
         message: "OTP is invalid or expired",
       });
