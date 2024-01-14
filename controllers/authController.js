@@ -237,7 +237,7 @@ export const forgotPassword = async (req, res, next) => {
         res.status(200).send({
           status: "Success",
           message: `OTP sent to ${email} via email`,
-          data: jobAd,
+          data: user,
         });
       } else {
         res
