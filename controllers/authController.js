@@ -76,7 +76,8 @@ export const login = async (req, res, next) => {
 
     // const realToken = token.replaceAll(".", "dot");
     // console.log(realToken);
-    // console.log(token);
+    console.log(token);
+    console.log(typeof process.env.JWT_EXPIRES_LOGIN);
 
     const { password, ...others } = user._doc;
 
@@ -108,7 +109,7 @@ export const googleAuth = async (req, res, next) => {
     if (user) {
       const token = GenerateToken({
         data: user._id,
-        expireIn: "24h",
+        expireIn: process.env.JWT_EXPIRES_LOGIN,
       });
       // const realToken = token.replaceAll(".", "dot")
       // console.log(realToken);
