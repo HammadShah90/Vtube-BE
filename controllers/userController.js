@@ -159,6 +159,7 @@ export const likeVideoController = async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+    console.log(err);
   }
 };
 
