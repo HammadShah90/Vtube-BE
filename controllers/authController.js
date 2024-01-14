@@ -210,7 +210,10 @@ export const forgotPassword = async (req, res, next) => {
           { _id: user._id },
           {
             $set: {
-              emailOTP: otpNumber,
+              emailOTP: {
+                otp: otpNumber,
+                createdAt: new Date() // Save the current timestamp
+              },
             },
           }
         );

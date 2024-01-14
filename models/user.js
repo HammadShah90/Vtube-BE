@@ -40,7 +40,8 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
     emailOTP: {
-      type: Number
+      OTP: Number,
+      createdAt: Date
     }
   },
   {
