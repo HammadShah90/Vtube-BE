@@ -39,9 +39,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    verifytoken: {
-      type: String,
-    },
+    emailOTP: [
+      {
+        Email: String,
+        OTP: Number,
+      },
+    ],
   },
   {
     timestamps: true,
