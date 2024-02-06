@@ -39,13 +39,14 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    emailOTP: {
-      otp: Number,
-      createdAt: Date
+    verifyOTP: {
+      OTP: { type: String, },
+      isVerified: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now },
     },
     resetToken: {
-      type: String
-    }
+      type: String,
+    },
   },
   {
     timestamps: true,

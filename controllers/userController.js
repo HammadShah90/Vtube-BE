@@ -44,14 +44,16 @@ export const deleteUserController = async (req, res, next) => {
 export const getUserController = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id);
-    const { password, ...others } = user._doc;
+    // const { password, ...others } = user._doc;
+    console.log(user);
 
     res.status(200).send({
       status: "Success",
       message: "User has been Fetched",
-      data: others,
+      data: user,
     });
   } catch (err) {
+    console.log(err);
     next(err.message);
   }
 };
