@@ -30,12 +30,12 @@ export const registration = async (req, res, next) => {
     } else if (password !== confirmPassword) {
       return res.status(BADREQUEST).send({
         status: "failed",
-        message: "Passwords do not match",
+        message: "Both Passwords do not match",
       });
     } else if (password.length < 8) {
       return res.status(BADREQUEST).send({
         status: "failed",
-        message: "Password must be at least 6 characters",
+        message: "Password must be at least 8 characters",
       });
     } else if (password.length > 20) {
       return res.status(BADREQUEST).send({
@@ -160,38 +160,24 @@ export const registration = async (req, res, next) => {
 export const verifyEmailOtp = async (req, res, next) => {
   try {
     const { email, Otp } = req.body;
+    const user = await User.findOne({ email });
 
     if (!email || !Otp) {
       return res.status(400).send({
         status: "Failed",
         message: "Email and OTP are required for verification.",
       });
-    }
-
-    const user = await User.findOne({ email });
-
-    if (!user) {
+    } else if (!user) {
       return res.status(NOTFOUND).send({
         status: "failed",
         message: "User not found",
       });
-    }
-
-    if (user.verifyOTP.OTP !== Otp) {
+    } else if (user.verifyOTP.OTP !== Otp) {
       return res.status(BADREQUEST).send({
         status: "failed",
         message: "Invalid OTP",
       });
-    }
-
-    const currentTime = new Date().getMinutes();
-    console.log(currentTime);
-    const otpTime = new Date(user.verifyOTP.createdAt).getMinutes();
-    console.log(otpTime);
-    const timeDifference = currentTime - otpTime;
-    console.log(timeDifference);
-
-    if (timeDifference <= 5 && user.verifyOTP.OTP === Otp) {
+    } else {
       user.verifyOTP.isVerified = true;
       await user.save();
 
@@ -199,12 +185,29 @@ export const verifyEmailOtp = async (req, res, next) => {
         status: "Success",
         message: "OTP verified successfully",
       });
-    } else {
-      res.status(BADREQUEST).send({
-        status: "failed",
-        message: "OTP expired",
-      });
     }
+
+    // const currentTime = new Date().getMinutes();
+    // console.log(currentTime);
+    // const otpTime = new Date(user.verifyOTP.createdAt).getMinutes();
+    // console.log(otpTime);
+    // const timeDifference = currentTime - otpTime;
+    // console.log(timeDifference);
+
+    // if (timeDifference <= 10 && user.verifyOTP.OTP === Otp) {
+    //   user.verifyOTP.isVerified = true;
+    //   await user.save();
+
+    //   res.status(OK).send({
+    //     status: "Success",
+    //     message: "OTP verified successfully",
+    //   });
+    // } else {
+    //   res.status(BADREQUEST).send({
+    //     status: "failed",
+    //     message: "OTP expired",
+    //   });
+    // }
   } catch (err) {
     next(err);
   }
@@ -215,60 +218,63 @@ export const verifyEmailOtp = async (req, res, next) => {
 // >------------------------
 export const login = async (req, res, next) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
+    const { email, password, confirmPassword } = req.body;
+    const user = await User.findOne({ email });
+    const validPassword = await bcrypt.compare(password, user.password);
 
-    if (!user) {
-      res.status(NOTFOUND).send({
-        status: "failed",
-        message: "Email not found",
-      });
-      return;
-    }
-
-    const validPassword = await bcrypt.compare(
-      req.body.password,
-      user.password
-    );
-
-    if (!validPassword) {
+    if (!email || !password || !confirmPassword) {
       return res.status(BADREQUEST).send({
         status: "failed",
-        message: "Password not valid",
+        message: "Please fill all input fields",
       });
-    }
-
-    if (!user.verifyOTP.isVerified) {
+    } else if (password !== confirmPassword) {
+      return res.status(BADREQUEST).send({
+        status: "failed",
+        message: "Both Passwords do not match",
+      });
+    } else if (!user) {
+      return res.status(NOTFOUND).send({
+        status: "failed",
+        message: "User not found",
+      });
+    } else if (!user.verifyOTP.isVerified) {
       return res.status(BADREQUEST).send({
         status: "failed",
         message: "Check your email and verify your OTP first",
       });
-    }
-
-    const token = GenerateToken({
-      data: user._id,
-      expireIn: process.env.JWT_EXPIRES_LOGIN,
-    });
-
-    // const realToken = token.replaceAll(".", "dot");
-    // console.log(realToken);
-    // console.log(token);
-    // console.log(typeof process.env.JWT_EXPIRES_LOGIN);
-
-    const { password, ...others } = user._doc;
-
-    res
-      .cookie("access_token", token, {
-        // Expires after 12 hours
-        expires: new Date(Date.now() + 12 * 60 * 60 * 1000),
-        httpOnly: true,
-      })
-      .status(OK)
-      .send({
-        status: "Success",
-        message: "User has been Signed In",
-        token,
-        data: others,
+    } else if (!validPassword) {
+      return res.status(BADREQUEST).send({
+        status: "failed",
+        message: "Password not valid",
       });
+    } else {
+      const token = GenerateToken({
+        data: user._id,
+        expireIn: process.env.JWT_EXPIRES_LOGIN,
+      });
+
+      // const realToken = token.replaceAll(".", "dot");
+      // console.log(realToken);
+      // console.log(token);
+      // console.log(typeof process.env.JWT_EXPIRES_LOGIN);
+
+      // Remove password field from user object
+      delete user._doc.password;
+
+      res
+        .cookie("access_token", token, {
+          // Expires after 12 hours
+          expires: new Date(Date.now() + 12 * 60 * 60 * 1000),
+          httpOnly: true,
+        })
+        .status(OK)
+        .send({
+          status: "Success",
+          message: "User has been Signed In",
+          token,
+          data: user._doc,
+        });
+    }
   } catch (err) {
     next(err);
     console.log(err);
