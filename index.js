@@ -14,6 +14,12 @@ const app = express();
 const __dirname = path.resolve();
 dotenv.config({ path: "./.env" });
 
+const corsOptions = {
+  origin: '*',
+};
+
+app.use(cors(corsOptions));
+
 
 // Middlewares
 // const corsOptions = {
