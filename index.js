@@ -42,7 +42,7 @@ app.use((err, req, res, next) => {
   const code = err.status || 500;
   const message = err.message || "Something went wrong!";
   return res.status(code).send({
-    Status: "Failed",
+    Status: false,
     code,
     message,
   });
