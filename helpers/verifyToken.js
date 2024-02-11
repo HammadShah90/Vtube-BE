@@ -5,7 +5,7 @@ const { sign, verify } = jwt;
 
 export const verifyToken = (req, res, next) => {
   const token = req.cookies.access_token;
-  // console.log(token);
+  console.log(token);
   if (!token) return next(createError(401, "You are not authenticated!"));
 
   verify(token, process.env.JWT_SECRET_KEY, (err, user) => {

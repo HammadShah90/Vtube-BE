@@ -1,8 +1,8 @@
-import mongoose from "mongoose";
 import User from "../models/user.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import validator from 'validator';
 import {
   BADREQUEST,
   INTERNALERROR,
@@ -15,9 +15,11 @@ import { GenerateToken } from "../helpers/verifyToken.js";
 
 const { verify, sign } = jwt;
 
+
 // >------------------------
 // >> User Registration logic
 // >------------------------
+
 export const registration = async (req, res, next) => {
   try {
     const { firstName, lastName, email, password, confirmPassword } = req.body;
@@ -68,99 +70,112 @@ export const registration = async (req, res, next) => {
         message: "Password must not contain any spaces",
       });
     } else {
-      const user = await User.findOne({ email });
-
-      if (user) {
+      const validateEmail = validator.isEmail(email)
+      console.log(validateEmail);
+      if (!validateEmail) {
         return res.status(BADREQUEST).send({
           status: false,
-          message: "Email already exists",
+          message: "Please provide correct Email for verification.",
         });
       } else {
-        const emailConfig = {
-          service: "gmail",
-          auth: {
-            user: process.env.FOUNDER_EMAIL,
-            pass: process.env.FOUNDER_PASSWORD,
-          },
-        };
 
-        // Function to send OTP via email
-        async function sendEmailOTP(mail, otp) {
-          const transporter = nodemailer.createTransport(emailConfig);
-
-          const mailOptions = {
-            from: process.env.FOUNDER_EMAIL,
-            to: email,
-            subject: "OTP Verification",
-            text: `Your OTP is: ${otp}`,
+        const user = await User.findOne({ email });
+  
+        if (user) {
+          return res.status(BADREQUEST).send({
+            status: false,
+            message: "Email already exists",
+          });
+        } else {
+          const emailConfig = {
+            service: "gmail",
+            auth: {
+              user: process.env.FOUNDER_EMAIL,
+              pass: process.env.FOUNDER_PASSWORD,
+            },
           };
-
-          try {
-            await transporter.sendMail(mailOptions);
-            return `OTP sent to ${mail} via email`;
-          } catch (error) {
-            throw `Error sending OTP to ${mail} via email: ${error}`;
+  
+          // Function to send OTP via email
+          async function sendEmailOTP(mail, otp) {
+            const transporter = nodemailer.createTransport(emailConfig);
+  
+            const mailOptions = {
+              from: process.env.FOUNDER_EMAIL,
+              to: email,
+              subject: "OTP Verification",
+              text: `Your OTP is: ${otp}`,
+            };
+  
+            try {
+              await transporter.sendMail(mailOptions);
+              return `OTP sent to ${mail} via email`;
+            } catch (error) {
+              throw `Error sending OTP to ${mail} via email: ${error}`;
+            }
           }
+  
+          // Generate OTP Code
+          const min = 100000;
+          const max = 999999;
+          const generateRandomCode =
+            Math.floor(Math.random() * (max - min + 1)) + min;
+          const generateRandomCodeString = generateRandomCode.toString();
+  
+          // Send OTP via email
+          const emailResponse = await sendEmailOTP(
+            email,
+            generateRandomCodeString
+          );
+          console.log(emailResponse);
+  
+          // return res.status(200).send({
+          //   status: true,
+          //   message: `OTP has been sent to this ${email}`,
+          //   otp: generateRandomCodeString,
+          // });
+  
+          // generated hash user password ==>>
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(password, salt);
+  
+          // created new user ==>>
+          const newUser = new User({
+            ...req.body,
+            verifyOTP: {
+              OTP: generateRandomCodeString,
+              isVerified: false,
+              createdAt: new Date(),
+            },
+            password: hashedPassword,
+          });
+  
+          // save user data and responsed==>
+          const user = await newUser.save();
+          console.log(user._doc.email);
+  
+          // Remove password field from user object
+          delete user._doc.password;
+  
+          res.status(OK).send({
+            status: true,
+            message:
+              `User created and OTP has been sent to this ${email} please verify`,
+            data: user._doc,
+          });
         }
-
-        // Generate OTP Code
-        const min = 100000;
-        const max = 999999;
-        const generateRandomCode =
-          Math.floor(Math.random() * (max - min + 1)) + min;
-        const generateRandomCodeString = generateRandomCode.toString();
-
-        // Send OTP via email
-        const emailResponse = await sendEmailOTP(
-          email,
-          generateRandomCodeString
-        );
-        console.log(emailResponse);
-
-        // return res.status(200).send({
-        //   status: true,
-        //   message: `OTP has been sent to this ${email}`,
-        //   otp: generateRandomCodeString,
-        // });
-
-        // generated hash user password ==>>
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // created new user ==>>
-        const newUser = new User({
-          ...req.body,
-          verifyOTP: {
-            OTP: generateRandomCodeString,
-            verify: false,
-            createdAt: new Date(),
-          },
-          password: hashedPassword,
-        });
-
-        // save user data and responsed==>
-        const user = await newUser.save();
-        console.log(user._doc.email);
-
-        // Remove password field from user object
-        delete user._doc.password;
-
-        res.status(OK).send({
-          status: true,
-          message:
-            "User created and OTP has been sent to this ${email} please verify",
-          data: user._doc,
-        });
       }
+
     }
   } catch (err) {
     next(err);
   }
 };
 
+
 // >------------------------
-// >> Registration Email Verify OTP logic
+// >> Email Verify OTP logic
 // >------------------------
+
 export const verifyEmailOtp = async (req, res, next) => {
   try {
     const { email, otp } = req.body;
@@ -176,50 +191,56 @@ export const verifyEmailOtp = async (req, res, next) => {
         status: false,
         message: "User not found",
       });
-    } else if (user.verifyOTP.OTP !== otp) {
-      return res.status(BADREQUEST).send({
-        status: false,
-        message: "Invalid OTP",
-      });
     } else {
-      user.verifyOTP.isVerified = true;
-      await user.save();
+      if (!user.verifyOTP?.isVerified) {
+        user.verifyOTP.isVerified = true;
+        await user.save();
+        return res.status(OK).send({
+          status: true,
+          message: "Email verified successfully",
+        });
+      } else {
+        const currentTime = new Date().getMinutes();
+        console.log(currentTime);
+        const otpTime = new Date(user.verifyOTP.createdAt).getMinutes();
+        console.log(otpTime);
+        const timeDifference = currentTime - otpTime;
+        console.log(timeDifference);
 
-      res.status(OK).send({
-        status: true,
-        message: "OTP verified successfully",
-      });
+        if (timeDifference <= 5 && user.verifyOTP.OTP === otp) {
+          const token = GenerateToken({
+            data: user._id,
+            expireIn: process.env.JWT_EXPIRES_IN,
+          });
+          console.log(token);
+
+          // const realToken = token.replaceAll(".", "d");
+          // console.log(realToken);
+          user.resetToken = token;
+          await user.save();
+          res.status(OK).send({
+            status: true,
+            message: "Email verified successfully",
+            token: token,
+          });
+        } else {
+          res.status(BADREQUEST).send({
+            status: false,
+            message: "OTP is invalid or expired",
+          });
+        }
+      }
     }
-
-    // const currentTime = new Date().getMinutes();
-    // console.log(currentTime);
-    // const otpTime = new Date(user.verifyOTP.createdAt).getMinutes();
-    // console.log(otpTime);
-    // const timeDifference = currentTime - otpTime;
-    // console.log(timeDifference);
-
-    // if (timeDifference <= 10 && user.verifyOTP.OTP === Otp) {
-    //   user.verifyOTP.isVerified = true;
-    //   await user.save();
-
-    //   res.status(OK).send({
-    //     status: true,
-    //     message: "OTP verified successfully",
-    //   });
-    // } else {
-    //   res.status(BADREQUEST).send({
-    //     status: false,
-    //     message: "OTP expired",
-    //   });
-    // }
   } catch (err) {
     next(err);
   }
 };
 
+
 // >------------------------
 // >> User Login logic
 // >------------------------
+
 export const login = async (req, res, next) => {
   try {
     const { email, password, confirmPassword } = req.body;
@@ -293,6 +314,7 @@ export const login = async (req, res, next) => {
 // >------------------------
 // >> Google Authentication logic
 // >------------------------
+
 export const googleAuth = async (req, res, next) => {
   try {
     const user = await User.findOne({ email: req.body.email });
@@ -350,6 +372,7 @@ export const googleAuth = async (req, res, next) => {
 // >------------------------
 // >> Forgot Password logic
 // >------------------------
+
 export const forgotPassword = async (req, res, next) => {
   const emailConfig = {
     service: "gmail",
@@ -380,120 +403,75 @@ export const forgotPassword = async (req, res, next) => {
 
   try {
     const { email } = req.body;
-    // console.log(email);
-    if (email) {
-      // Generate OTP Code
-      const min = 100000;
-      const max = 999999;
-      const generateRandomCode =
-        Math.floor(Math.random() * (max - min + 1)) + min;
-
-      const user = await User.findOneAndUpdate(
-        { email },
-        {
-          $set: {
-            emailOTP: {
-              OTP: generateRandomCode,
-              isUsed: false,
-              createdAt: new Date(),
-            },
-          },
-        },
-        { new: true }
-      );
+    const validateEmail = validator.isEmail(email)
+    console.log(validateEmail);
+    if (!validateEmail) {
+      return res.status(BADREQUEST).send({
+        status: false,
+        message: "Please provide correct Email for verification.",
+      });
+    } else {
+      const user = await User.findOne({ email });
 
       if (!user) {
+        return res.status(NOTFOUND).send({
+          status: false,
+          message: "User not found",
+        });
+      } else if (!user.verifyOTP.isVerified) {
         return res.status(BADREQUEST).send({
           status: false,
-          message: "User not found or OTP not added",
+          message:
+            "Please verify that otp which is sent to your provided email address when you were signing up.",
         });
-      }
+      } else {
+        // Generate OTP Code
+        const min = 100000;
+        const max = 999999;
+        const generateRandomCode =
+          Math.floor(Math.random() * (max - min + 1)) + min;
+        const generateRandomCodeString = generateRandomCode.toString();
 
-      // Send OTP via email
-      try {
-        await sendEmailOTP(email, generateRandomCode);
+        await User.findOneAndUpdate(
+          { email },
+          {
+            $set: {
+              verifyOTP: {
+                OTP: generateRandomCodeString,
+                createdAt: new Date(),
+              },
+            },
+          },
+          { new: true }
+        );
 
-        res.status(OK).send({
-          status: true,
-          message: `OTP sent to ${email} via email`,
-        });
-      } catch (error) {
-        console.log(error);
-        res.status(INTERNALERROR).send({
-          status: false,
-          message: "Error sending email with OTP",
-        });
+        // Send OTP via email
+        try {
+          await sendEmailOTP(email, generateRandomCode);
+
+          res.status(OK).send({
+            status: true,
+            message: `OTP sent to ${email} via email`,
+          });
+        } catch (error) {
+          console.log(error);
+          res.status(INTERNALERROR).send({
+            status: false,
+            message: "Error sending email with OTP",
+          });
+        }
       }
-    } else {
-      return res
-        .status(BADREQUEST)
-        .send(createError(BADREQUEST, responseMessages.MISSING_FIELD_EMAIL));
     }
   } catch (err) {
     next(err);
   }
 };
 
-// >------------------------
-// >> Verify OTP logic
-// >------------------------
-export const verifyOTP = async (req, res, next) => {
-  const { email, otp } = req.body;
-  if (!email || !otp) {
-    return res.status(400).send({
-      status: false,
-      message: "Email and OTP are required for verification.",
-    });
-  }
-  try {
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).send({
-        status: false,
-        message: "User not found",
-      });
-    }
-
-    const currentTime = new Date().getMinutes();
-    console.log(currentTime);
-    const otpTime = new Date(user.emailOTP.createdAt).getMinutes();
-    console.log(otpTime);
-    const timeDifference = currentTime - otpTime;
-    console.log(timeDifference);
-
-    if (timeDifference <= 5 && user.emailOTP.OTP === otp) {
-      const token = GenerateToken({
-        data: user._id,
-        expireIn: process.env.JWT_EXPIRES_IN,
-      });
-      console.log(token);
-
-      const realToken = token.replaceAll(".", "d");
-      console.log(realToken);
-      user.resetToken = realToken;
-      await user.save();
-
-      // OTP is valid, proceed to the password reset step
-      res.status(OK).send({
-        status: true,
-        message: "OTP is valid",
-        token: realToken,
-        // Optionally, you can send a token to the user for the password reset step
-      });
-    } else {
-      return res.status(BADREQUEST).send({
-        status: false,
-        message: "OTP is invalid or expired",
-      });
-    }
-  } catch (error) {
-    next(error);
-  }
-};
 
 // >------------------------
 // >> Reset Password logic
 // >------------------------
+
 export const resetPassword = async (req, res, next) => {
   // console.log("reset password email cotroller");
   try {

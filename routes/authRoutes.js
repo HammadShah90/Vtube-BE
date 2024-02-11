@@ -4,7 +4,6 @@ import {
   registration,
   verifyEmailOtp,
   forgotPassword,
-  verifyOTP,
   resetPassword,
   googleAuth,
 } from "../controllers/authController.js";
@@ -22,9 +21,6 @@ authRoutes.post("/login", login);
 
 // FORGOT PASSWORD
 authRoutes.post("/forgotpassword", forgotPassword);
-
-// Verify OTP
-authRoutes.post("/verify-otp", verifyOTP);
 
 // RESET PASSWORD
 authRoutes.post("/resetpassword/:id/:token", resetPassword);
